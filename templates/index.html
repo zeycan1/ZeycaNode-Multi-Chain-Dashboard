@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZeycaNode | Cross-Chain Dashboard</title>
+    <style>
+        body { background-color: #0d1117; color: #c9d1d9; font-family: monospace; margin: 0; padding: 40px; }
+        .header { text-align: center; margin-bottom: 40px; }
+        .header h1 { color: #58a6ff; font-size: 2.5em; margin: 0; }
+        .header p { color: #8b949e; }
+        table { width: 100%; max-width: 900px; margin: 0 auto; border-collapse: collapse; background: #161b22; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        th, td { padding: 15px 20px; text-align: left; border-bottom: 1px solid #30363d; }
+        th { background: #21262d; color: #8b949e; font-weight: bold; text-transform: uppercase; }
+        .online { color: #3fb950; font-weight: bold; }
+        .offline { color: #f85149; font-weight: bold; }
+        .sync-false { color: #3fb950; }
+        .sync-true { color: #d29922; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>ZeycaNode Health Dashboard</h1>
+        <p>Real-time Cross-Chain Infrastructure Monitor</p>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Network</th>
+                <th>Status</th>
+                <th>Block Height</th>
+                <th>Catching Up</th>
+            </tr>
+        </thead>
+        <tbody id="node-data">
+            <tr><td colspan="4" style="text-align:center;">Fetching telemetry...</td></tr>
+        </tbody>
+    </table>
+
+    <script>
+        async function fetchStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                let rows = '';
+                data.forEach(node => {
+                    const statusClass = node.status === 'Online' ? 'online' : 'offline';
+                    const syncClass = node.catching_up === 'False' ? 'sync-false' : 'sync-true';
+                    rows += `<tr>
+                        <td><strong>${node.name}</strong></td>
+                        <td class="${statusClass}">${node.status}</td>
+                        <td>${node.height}</td>
+                        <td class="${syncClass}">${node.catching_up}</td>
+                    </tr>`;
+                });
+                document.getElementById('node-data').innerHTML = rows;
+            } catch (error) {
+                console.error("Error fetching data");
+            }
+        }
+        setInterval(fetchStatus, 10000); // 10 saniyede bir günceller
+        fetchStatus();
+    </script>
+</body>
+</html>
