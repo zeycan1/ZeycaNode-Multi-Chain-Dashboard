@@ -1,15 +1,15 @@
 from flask import Flask, render_template, jsonify
 import requests
-import time
 
 app = Flask(__name__)
 
-# İzlenecek ağlar ve varsayılan RPC adresleri (Kullanıcılar burayı kendi IP'leri ile değiştirebilir)
+# İzlenecek ağlar ve güncellenmiş RPC adresleri
+# DİKKAT: "SUNUCU_IP_ADRESINIZ" yazan kısımlara kendi sunucu IP'nizi yazmalısınız.
 NETWORKS = [
-    {"name": "Gno.land Test13", "type": "tendermint", "url": "http://localhost:26657"},
-    {"name": "0G Labs", "type": "tendermint", "url": "http://localhost:26657"},
+    {"name": "Gno.land Test13", "type": "tendermint", "url": "http://SUNUCU_IP_ADRESINIZ:26657"},
+    {"name": "0G Labs", "type": "tendermint", "url": "http://SUNUCU_IP_ADRESINIZ:26657"},
     {"name": "NEAR Protocol", "type": "jsonrpc", "url": "https://rpc.mainnet.near.org"},
-    {"name": "Safrochain", "type": "tendermint", "url": "http://localhost:26657"}
+    {"name": "Safrochain", "type": "tendermint", "url": "http://SUNUCU_IP_ADRESINIZ:26657"}
 ]
 
 def check_status():
@@ -18,7 +18,7 @@ def check_status():
         node_data = {"name": net["name"], "status": "Offline", "height": "-", "catching_up": "-"}
         try:
             if net["type"] == "tendermint":
-                resp = requests.get(f"{net['url']}/status", timeout=3)
+                resp = requests.get(f"{net['url']}/status", timeout=5) # Timeout süresini bulut için 5 sn yaptık
                 if resp.status_code == 200:
                     data = resp.json()
                     node_data["status"] = "Online"
@@ -26,7 +26,7 @@ def check_status():
                     node_data["catching_up"] = str(data["result"]["sync_info"]["catching_up"])
             elif net["type"] == "jsonrpc":
                 payload = {"jsonrpc": "2.0", "id": "dontcare", "method": "status", "params": []}
-                resp = requests.post(net["url"], json=payload, timeout=3)
+                resp = requests.post(net["url"], json=payload, timeout=5)
                 if resp.status_code == 200:
                     data = resp.json()
                     node_data["status"] = "Online"
@@ -45,5 +45,6 @@ def index():
 def status():
     return jsonify(check_status())
 
+# Vercel'in uygulamayı bulabilmesi için gerekli app değişkeni
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
