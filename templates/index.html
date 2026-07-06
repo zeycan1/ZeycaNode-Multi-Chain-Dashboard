@@ -3,63 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZeycaNode | Cross-Chain Dashboard</title>
+    <title>ZeycaNode | Gno.land Leaderboard</title>
     <style>
         body { background-color: #0d1117; color: #c9d1d9; font-family: monospace; margin: 0; padding: 40px; }
-        .header { text-align: center; margin-bottom: 40px; }
+        .header { text-align: center; margin-bottom: 30px; }
         .header h1 { color: #58a6ff; font-size: 2.5em; margin: 0; }
-        .header p { color: #8b949e; }
-        table { width: 100%; max-width: 900px; margin: 0 auto; border-collapse: collapse; background: #161b22; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .header p { color: #8b949e; font-size: 1.1em; }
+        .search-container { text-align: center; margin-bottom: 30px; }
+        input[type="text"] { width: 100%; max-width: 500px; padding: 12px 20px; font-family: monospace; font-size: 16px; background-color: #161b22; color: #58a6ff; border: 1px solid #30363d; border-radius: 6px; outline: none; }
+        input[type="text"]:focus { border-color: #58a6ff; }
+        table { width: 100%; max-width: 1000px; margin: 0 auto; border-collapse: collapse; background: #161b22; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
         th, td { padding: 15px 20px; text-align: left; border-bottom: 1px solid #30363d; }
         th { background: #21262d; color: #8b949e; font-weight: bold; text-transform: uppercase; }
-        .online { color: #3fb950; font-weight: bold; }
-        .offline { color: #f85149; font-weight: bold; }
-        .sync-false { color: #3fb950; }
-        .sync-true { color: #d29922; }
+        .rank-1 { color: #d29922; font-weight: bold; font-size: 1.2em; } /* Altın */
+        .rank-2 { color: #8b949e; font-weight: bold; font-size: 1.1em; } /* Gümüş */
+        .rank-3 { color: #b7791f; font-weight: bold; font-size: 1.1em; } /* Bronz */
+        .power { color: #3fb950; font-weight: bold; }
+        .footer { text-align: center; margin-top: 40px; color: #484f58; font-size: 0.9em; }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>ZeycaNode Health Dashboard</h1>
-        <p>Real-time Cross-Chain Infrastructure Monitor</p>
+        <h1>ZeycaNode Validator Leaderboard</h1>
+        <p>Gno.land Testnet Active Set Monitor</p>
     </div>
-    <table>
+
+    <div class="search-container">
+        <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="Search by Validator Address...">
+    </div>
+
+    <table id="leaderboardTable">
         <thead>
             <tr>
-                <th>Network</th>
-                <th>Status</th>
-                <th>Block Height</th>
-                <th>Catching Up</th>
+                <th>Rank</th>
+                <th>Validator Address</th>
+                <th>Voting Power</th>
+                <th>Proposer Priority</th>
             </tr>
         </thead>
-        <tbody id="node-data">
-            <tr><td colspan="4" style="text-align:center;">Fetching telemetry...</td></tr>
+        <tbody id="val-data">
+            <tr><td colspan="4" style="text-align:center; color: #8b949e;">Fetching active set from Gno.land...</td></tr>
         </tbody>
     </table>
 
+    <div class="footer">
+        Provided to the community by ZeycaNode Infrastructure
+    </div>
+
     <script>
-        async function fetchStatus() {
+        async function fetchValidators() {
             try {
-                const response = await fetch('/api/status');
+                const response = await fetch('/api/validators');
                 const data = await response.json();
                 let rows = '';
-                data.forEach(node => {
-                    const statusClass = node.status === 'Online' ? 'online' : 'offline';
-                    const syncClass = node.catching_up === 'False' ? 'sync-false' : 'sync-true';
-                    rows += `<tr>
-                        <td><strong>${node.name}</strong></td>
-                        <td class="${statusClass}">${node.status}</td>
-                        <td>${node.height}</td>
-                        <td class="${syncClass}">${node.catching_up}</td>
-                    </tr>`;
-                });
-                document.getElementById('node-data').innerHTML = rows;
+                
+                if (data.length === 0) {
+                    rows = '<tr><td colspan="4" style="text-align:center; color: #f85149;">Failed to load data or network is currently syncing.</td></tr>';
+                } else {
+                    data.forEach(val => {
+                        // İlk 3 validatöre özel renk stili
+                        let rankClass = '';
+                        if (val.rank === 1) rankClass = 'rank-1';
+                        else if (val.rank === 2) rankClass = 'rank-2';
+                        else if (val.rank === 3) rankClass = 'rank-3';
+
+                        rows += `<tr>
+                            <td class="${rankClass}">#${val.rank}</td>
+                            <td style="color: #c9d1d9;">${val.address}</td>
+                            <td class="power">${val.voting_power}</td>
+                            <td>${val.proposer_priority}</td>
+                        </tr>`;
+                    });
+                }
+                document.getElementById('val-data').innerHTML = rows;
             } catch (error) {
                 console.error("Error fetching data");
+                document.getElementById('val-data').innerHTML = '<tr><td colspan="4" style="text-align:center; color: #f85149;">API Error.</td></tr>';
             }
         }
-        setInterval(fetchStatus, 10000); // 10 saniyede bir günceller
-        fetchStatus();
+
+        // Arama fonksiyonu
+        function filterTable() {
+            const input = document.getElementById("searchInput");
+            const filter = input.value.toUpperCase();
+            const table = document.getElementById("leaderboardTable");
+            const tr = table.getElementsByTagName("tr");
+
+            for (let i = 1; i < tr.length; i++) {
+                const td = tr[i].getElementsByTagName("td")[1]; // Address sütunu
+                if (td) {
+                    const txtValue = td.textContent || td.innerText;
+                    if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                        tr[i].style.display = "";
+                    } else {
+                        tr[i].style.display = "none";
+                    }
+                }       
+            }
+        }
+
+        // Sayfa açıldığında veriyi çek
+        fetchValidators();
+        // Veriyi her 30 saniyede bir otomatik yenile
+        setInterval(fetchValidators, 30000);
     </script>
 </body>
 </html>
