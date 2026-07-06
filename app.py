@@ -3,13 +3,22 @@ import requests
 
 app = Flask(__name__)
 
-# İzlenecek ağlar ve güncellenmiş RPC adresleri
-# DİKKAT: "SUNUCU_IP_ADRESINIZ" yazan kısımlara kendi sunucu IP'nizi yazmalısınız.
+# ZeycaNode Multi-Chain Infrastructure - Güncel ve Kesin Portlar
 NETWORKS = [
-    {"name": "Gno.land Test13", "type": "tendermint", "url": "http://SUNUCU_IP_ADRESINIZ:26657"},
-    {"name": "0G Labs", "type": "tendermint", "url": "http://SUNUCU_IP_ADRESINIZ:26657"},
-    {"name": "NEAR Protocol", "type": "jsonrpc", "url": "https://rpc.mainnet.near.org"},
-    {"name": "Safrochain", "type": "tendermint", "url": "http://SUNUCU_IP_ADRESINIZ:26657"}
+    # 185.16.39.172 Sunucusu
+    {"name": "Gno.land Test13", "type": "tendermint", "url": "http://185.16.39.172:26657"},
+    {"name": "Safrochain Mainnet", "type": "tendermint", "url": "http://185.16.39.172:26658"},
+    
+    # 13.140.137.185 Sunucusu 
+    {"name": "Safrochain Testnet", "type": "tendermint", "url": "http://13.140.137.185:26657"},
+    
+    # 164.68.123.138 Sunucusu (Terminalden teyit edilen kesin portlar)
+    {"name": "Airchains", "type": "tendermint", "url": "http://164.68.123.138:19657"},
+    {"name": "Republic", "type": "tendermint", "url": "http://164.68.123.138:13357"},
+    {"name": "0G AI Alignment Node", "type": "jsonrpc", "url": "http://164.68.123.138:8080"},
+    
+    # Dış Bağlantılar
+    {"name": "NEAR Protocol", "type": "jsonrpc", "url": "https://rpc.mainnet.near.org"}
 ]
 
 def check_status():
@@ -18,33 +27,24 @@ def check_status():
         node_data = {"name": net["name"], "status": "Offline", "height": "-", "catching_up": "-"}
         try:
             if net["type"] == "tendermint":
-                resp = requests.get(f"{net['url']}/status", timeout=5) # Timeout süresini bulut için 5 sn yaptık
+                # Cosmos/Tendermint tabanlı ağlar için RPC /status sorgusu
+                resp = requests.get(f"{net['url']}/status", timeout=5)
                 if resp.status_code == 200:
                     data = resp.json()
                     node_data["status"] = "Online"
                     node_data["height"] = data["result"]["sync_info"]["latest_block_height"]
                     node_data["catching_up"] = str(data["result"]["sync_info"]["catching_up"])
+            
             elif net["type"] == "jsonrpc":
+                # EVM, NEAR veya 0G gibi JSON-RPC kullanan ağlar için sorgu
                 payload = {"jsonrpc": "2.0", "id": "dontcare", "method": "status", "params": []}
                 resp = requests.post(net["url"], json=payload, timeout=5)
                 if resp.status_code == 200:
                     data = resp.json()
                     node_data["status"] = "Online"
-                    node_data["height"] = data.get("sync_info", {}).get("latest_block_height", "Active")
-                    node_data["catching_up"] = "False"
-        except Exception:
-            pass
-        results.append(node_data)
-    return results
-
-@app.route("/")
-def index():
-    return render_template("index.html")
-
-@app.route("/api/status")
-def status():
-    return jsonify(check_status())
-
-# Vercel'in uygulamayı bulabilmesi için gerekli app değişkeni
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+                    
+                    # Farklı ağların JSON-RPC yanıt formatları değişebildiği için güvenli okuma
+                    if "sync_info" in data:
+                        node_data["height"] = data.get("sync_info", {}).get("latest_block_height", "Active")
+                        node_data["catching_up"] = str(data.get("sync_info", {}).get("catching_up", "False"))
+                    else:
